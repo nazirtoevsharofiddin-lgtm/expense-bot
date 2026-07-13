@@ -200,13 +200,13 @@ class ExpenseTracker:
         return expenses[::-1]
 
     def delete_expense(self, row_idx: int) -> bool:
-        """Удаляет расход по индексу строки"""
-        ws = self.sheet.worksheet("Расходы")
-        try:
-            ws.delete_rows(row_idx, 1)
-            return True
-        except:
-            return False
+    """Удаляет расход по индексу строки"""
+    ws = self.sheet.worksheet("Расходы")
+    try:
+        ws.delete_rows(row_idx + 1, 1)  # +1 потому что первая строка — заголовок
+        return True
+    except:
+        return False
 
     def get_top_expenses(self, limit: int = 5) -> str:
         """Топ расходов за месяц"""
