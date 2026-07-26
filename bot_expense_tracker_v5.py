@@ -1193,10 +1193,12 @@ def main():
     app.add_handler(CommandHandler("export", export_cmd))
     app.add_handler(CommandHandler("literacy", literacy_cmd))
     app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(CommandHandler("undoall", undoall_cmd))
     app.add_handler(CallbackQueryHandler(subcat_callback, pattern=r"^subcat\|"))
     app.add_handler(CallbackQueryHandler(literacy_detail_callback, pattern=r"^literacy_detail\|"))
     app.add_handler(CallbackQueryHandler(cat_entries_callback, pattern=r"^cat_entries\|"))
 
+    app.add_handler(CallbackQueryHandler(delete_expense_callback, pattern=r"^delete_exp|"))
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("undo", undo_cmd)],
         states={
