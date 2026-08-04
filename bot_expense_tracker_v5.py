@@ -234,11 +234,12 @@ class ExpenseTracker:
 - Золото, акции, вклад, сбережения → "Инвестиции"
 - Зарплата, доход, премия, продажа → "Доход" (is_income: true)
 - Отдать долг → "Долг" > "Отдать долг"
-- Получить долг → "Долг" > "Получить долг" (is_income: true)
+- Получить долг → "Долг" > "Получить долг" (is_income: true, is_debt: true)
 - amount всегда положительное число
+- date: если в тексте упоминается дата (вчера, 15 июля, 01.07.2026, завтра, 3 дня назад), извлеки дату в формате DD.MM.YYYY. Иначе null.
 
 Ответь ТОЛЬКО JSON без markdown:
-{{"amount": 50000, "description": "кофе", "category": "Еда и напитки", "subcategory": "Рестораны и кафе", "is_income": false}}"""
+{"amount": 50000, "description": "кофе", "category": "Еда и напитки", "subcategory": "Рестораны и кафе", "is_income": false, "is_debt": false, "date": null}"""
 
         try:
             response = self.client.messages.create(
@@ -256,8 +257,6 @@ class ExpenseTracker:
             print(f"Ошибка Claude API: {e}")
             return None
 
-    # ------------------------------------------------------------------
-    # Запись расхода
     # ------------------------------------------------------------------
 
     def write_expense(self, amount: float, description: str, category: str,
