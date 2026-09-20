@@ -105,7 +105,7 @@ EXPENSE_CATEGORIES = {
     },
     "Долг": {
         "emoji": "🤝",
-        "subcategories": ["Отдать долг", "Дать в долг кому-то", "Получить долг"],
+        "subcategories": ["Дал в долг", "Взял в долг", "Мне вернули долг", "Отдал долг"],
         "literacy_group": "Резерв",
     },
     "Доход": {
@@ -255,8 +255,10 @@ class ExpenseTracker:
 - Деньги родителям, семье → "Reciprocity" > "Аҳли оила (деньги семье)"
 - Золото, акции, вклад, сбережения → "Инвестиции"
 - Зарплата, доход, премия, продажа → "Доход" (is_income: true)
-- Я даю деньги в долг кому-то → "Долг" > "Отдать долг" (is_income: false, is_debt: true)
-- Мне возвращают долг, который я давал → "Долг" > "Получить долг" (is_income: true, is_debt: true)
+- "Дал в долг" (я даю деньги в долг): "Долг" > "Дал в долг" (wallet: -, creates RECEIVABLE). Примеры: "дал в долг", "одолжил Алишеру", "дал Мухтору 100к"
+- "Мне вернули долг" (кто-то вернул мне деньги): "Долг" > "Мне вернули долг" (wallet: +, closes receivable, NOT income). Примеры: "вернули долг", "Алишер вернул 200000"
+- "Взял в долг" (я беру деньги в долг): "Долг" > "Взял в долг" (wallet: +, creates PAYABLE). Примеры: "взял долг у друга", "занял 500000 у брата", "одолжил у соседа"
+- "Отдал долг" (я возвращаю деньги, которые одолжил): "Долг" > "Отдал долг" (wallet: -, closes payable, NOT expense). Примеры: "отдал долг", "вернул деньги брату"
 - amount всегда положительное число
 - date: если в тексте упоминается дата (вчера, позавчера, 15 июля, 01.07.2026, завтра, N дней назад), вычисли и извлеки дату в формате DD.MM.YYYY относительно сегодняшней даты {today_str}. Если дата не упомянута — верни null.
 
@@ -361,6 +363,45 @@ class ExpenseTracker:
         """
         outstanding = self.get_outstanding_debts()
         if not outstanding:
+            return None
+
+    def get_outstanding_payables(self) -> List[Tuple]:
+        """Список непогащенных долгов, которые я должен (взял в долг, ещё не вернул)."""
+        ws = self.sheet.worksheet("Расходы")
+        rows = ws.get_all_values()
+        result = []
+        for idx, row in enumerate(rows[1:], 1):
+            if len(row) < 6:
+                continue
+            try:
+                subcat = row[3]
+                cat = row[4]
+                comment = row[6] if len(row) > 6 else ""
+                if cat != "Долг" or subcat != "Взял в долг":
+                    continue
+                if DEBT_OPEN_TAG not in comment:
+                    continue
+                amount = abs(float(row[5]))
+                result.append((idx, row[0], row[2], amount, comment))
+            except:
+                pass
+        return result
+
+    def settle_payable(self, amount: float, description: str = "") -> Optional[Tuple[int, str, float]]:
+        """Находит и закрывает непогащенный долг, который я должен (payable)."""
+        outstanding = self.get_outstanding_payables()
+        if not outstanding:
+            return None
+        exact_matches = [d for d in outstanding if abs(d[3] - amount) < 1]
+        candidate = exact_matches[0] if exact_matches else outstanding[-1]
+        row_idx, date_str, desc, debt_amount, comment = candidate
+        ws = self.sheet.worksheet("Расходы")
+        try:
+            new_comment = comment.replace(DEBT_OPEN_TAG, DEBT_CLOSED_TAG)
+            ws.update_cell(row_idx + 1, 7, new_comment)
+            return (row_idx, desc, debt_amount)
+        except Exception as e:
+            print(f"❌ settle_payable error: {e}")
             return None
 
         # Сначала пробуем найти точное совпадение по сумме
@@ -784,7 +825,7 @@ class ExpenseTracker:
             msg += f"📉 <b>Расходы:</b> -{format_amount(total_expenses)} сум\n"
         balance = income - total_expenses + debt_net
         sign = "+" if balance >= 0 else ""
-        msg += f"\n💰 <b>Баланс:</b> {sign}{format_amount(balance)} сум\n"
+        msg += f"\n💰 <b>Баланс за месяц:</b> {sign}{format_amount(balance)} сум\n"
         if debt_net != 0:
             dsign = "+" if debt_net >= 0 else ""
             msg += f"🤝 <i>из них долги: {dsign}{format_amount(debt_net)} сум</i>\n"
@@ -901,7 +942,7 @@ class ExpenseTracker:
             msg += f"📉 <b>Расходы:</b> -{format_amount(total_expenses)} сум\n"
         balance = income - total_expenses + debt_net
         sign = "+" if balance >= 0 else ""
-        msg += f"\n💰 <b>Баланс:</b> {sign}{format_amount(balance)} сум\n"
+        msg += f"\n💰 <b>Баланс за месяц:</b> {sign}{format_amount(balance)} сум\n"
         if debt_net != 0:
             dsign = "+" if debt_net >= 0 else ""
             msg += f"🤝 <i>из них долги: {dsign}{format_amount(debt_net)} сум</i>\n"
@@ -950,7 +991,7 @@ class ExpenseTracker:
                 msg += f"  {emoji} {cat}: {format_amount(amt)} сум\n"
         balance = income - total_expenses + debt_net
         sign = "+" if balance >= 0 else ""
-        msg += f"\n💰 <b>Баланс:</b> {sign}{format_amount(balance)} сум"
+        msg += f"\n💰 <b>Баланс за месяц:</b> {sign}{format_amount(balance)} сум"
         if debt_net != 0:
             dsign = "+" if debt_net >= 0 else ""
             msg += f"\n🤝 <i>из них долги: {dsign}{format_amount(debt_net)} сум</i>"
@@ -1065,6 +1106,46 @@ class ExpenseTracker:
         msg += f"💰 Баланс: {format_amount(total1)} → {format_amount(total2)} сум"
         return msg
 
+    def get_all_time_balance(self) -> str:
+        """Показывает all-time баланс: доход, расходы, деньги на руках, долги."""
+        ws = self.sheet.worksheet("Расходы")
+        rows = ws.get_all_values()
+        
+        total_income = 0.0
+        total_expenses = 0.0
+        total_debt_net = 0.0
+        
+        for row in rows[1:]:
+            if len(row) < 6:
+                continue
+            try:
+                cat = row[4]
+                amount = float(row[5])
+                
+                if is_debt_category(cat):
+                    total_debt_net += amount
+                    continue
+                    
+                if amount > 0:
+                    total_income += amount
+                else:
+                    total_expenses += abs(amount)
+            except:
+                pass
+        
+        all_time_balance = total_income - total_expenses + total_debt_net
+        receivables_total = sum(d[3] for d in self.get_outstanding_debts())
+        payables_total = sum(d[3] for d in self.get_outstanding_payables())
+        
+        msg = "💚 <b>ALL-TIME БАЛАНС (за всё время)</b>\n\n"
+        msg += f"💚 Всего дохода (за всё время): +{format_amount(total_income)} сум\n"
+        msg += f"📉 Всего расходов (за всё время): -{format_amount(total_expenses)} сум\n"
+        balance_sign = "+" if all_time_balance >= 0 else ""
+        msg += f"💰 Баланс (за всё время): {balance_sign}{format_amount(all_time_balance)} сум\n\n"
+        msg += f"🤝 Вам должны (открытые долги в вашу пользу): {format_amount(receivables_total)} сум\n"
+        msg += f"💳 Вы должны (открытые долги): {format_amount(payables_total)} сум"
+        return msg
+
     def export_csv(self) -> str:
         ws = self.sheet.worksheet("Расходы")
         rows = ws.get_all_values()
@@ -1168,7 +1249,9 @@ async def weekly_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def month_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tracker = context.bot_data.get('tracker')
-    msg, keyboard = tracker.get_month_summary()
+    args = update.message.text.split()
+    month_str = args[1] if len(args) > 1 else None
+    msg, keyboard = tracker.get_month_summary(month_str)
     await update.message.reply_text(msg, parse_mode=ParseMode.HTML, reply_markup=keyboard)
 
 
@@ -1200,6 +1283,12 @@ async def export_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tracker = context.bot_data.get('tracker')
     csv_data = tracker.export_csv()
     await update.message.reply_document(document=csv_data.encode(), filename="расходы.csv")
+
+async def balance_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tracker = context.bot_data.get('tracker')
+    msg = tracker.get_all_time_balance()
+    await update.message.reply_text(msg, parse_mode=ParseMode.HTML)
+
 
 
 async def debts_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
