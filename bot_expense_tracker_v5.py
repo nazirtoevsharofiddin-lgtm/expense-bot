@@ -283,7 +283,7 @@ class ExpenseTracker:
 
     # ------------------------------------------------------------------
 
-    def write_expense(self, amount: float, description: str, category: str,
+        def write_expense(self, amount: float, description: str, category: str,
                       subcategory: str, comment: str = "", is_income: bool = False,
                       date: Optional[str] = None, is_debt: bool = False) -> str:
         record_date = parse_date_or_today(date)
@@ -293,8 +293,8 @@ class ExpenseTracker:
 
         full_comment = comment or ""
         if is_debt and category == "Долг" and subcategory in ("Дал в долг", "Взял в долг"):
-    full_comment = (full_comment + " " + DEBT_OPEN_TAG).strip()
-elif is_debt and category == "Долг" and subcategory in ("Мне вернули долг", "Отдал долг"):
+            full_comment = (full_comment + " " + DEBT_OPEN_TAG).strip()
+        elif is_debt and category == "Долг" and subcategory in ("Мне вернули долг", "Отдал долг"):
             full_comment = (full_comment + " " + TRANSFER_TAG).strip()
 
         ws = self.sheet.worksheet("Расходы")
@@ -332,7 +332,7 @@ elif is_debt and category == "Долг" and subcategory in ("Мне вернул
     # ДОЛГИ: учёт и автозакрытие
     # ------------------------------------------------------------------
 
-    def get_outstanding_debts(self) -> List[Tuple]:
+        def get_outstanding_debts(self) -> List[Tuple]:
         """Список непогашенных долгов (я дал в долг, ещё не вернули)."""
         ws = self.sheet.worksheet("Расходы")
         rows = ws.get_all_values()
