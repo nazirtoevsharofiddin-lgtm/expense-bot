@@ -292,9 +292,9 @@ class ExpenseTracker:
         stored_amount = amount if is_income else -amount
 
         full_comment = comment or ""
-        if is_debt and category == "Долг" and subcategory in ("Отдать долг", "Дать в долг кому-то"):
-            full_comment = (full_comment + " " + DEBT_OPEN_TAG).strip()
-        elif is_debt and category == "Долг" and subcategory == "Получить долг":
+        if is_debt and category == "Долг" and subcategory in ("Дал в долг", "Взял в долг"):
+    full_comment = (full_comment + " " + DEBT_OPEN_TAG).strip()
+elif is_debt and category == "Долг" and subcategory in ("Мне вернули долг", "Отдал долг"):
             full_comment = (full_comment + " " + TRANSFER_TAG).strip()
 
         ws = self.sheet.worksheet("Расходы")
@@ -344,7 +344,7 @@ class ExpenseTracker:
                 subcat = row[3]
                 cat = row[4]
                 comment = row[6] if len(row) > 6 else ""
-                if cat != "Долг" or subcat not in ("Отдать долг", "Дать в долг кому-то"):
+                if cat != "Долг" or subcat != "Дал в долг":
                     continue
                 if DEBT_OPEN_TAG not in comment:
                     continue
