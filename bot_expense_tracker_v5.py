@@ -838,10 +838,13 @@ class ExpenseTracker:
                 msg += f"{emoji} {cat}: {format_amount(amt)} сум\n"
         return msg
 
-    def get_month_summary(self) -> Tuple[str, Optional[InlineKeyboardMarkup]]:
+    def get_month_summary(self, month_str: Optional[str] = None) -> Tuple[str, Optional[InlineKeyboardMarkup]]:
         ws = self.sheet.worksheet("Расходы")
         rows = ws.get_all_values()
-        current_month = datetime.now().strftime("%m.%Y")
+        if month_str and re.match(r"^\d{2}\.\d{4}$", month_str):
+            current_month = month_str
+        else:
+            current_month = datetime.now().strftime("%m.%Y")
         income = 0.0
         expenses_sum: Dict[str, float] = {}
         total_expenses = 0.0
@@ -863,8 +866,8 @@ class ExpenseTracker:
             except:
                 pass
         if income == 0 and total_expenses == 0 and debt_net == 0:
-            return "📈 Нет данных за этот месяц", None
-        msg = "📈 <b>За месяц:</b>\n\n"
+            return f"📈 Нет данных за {current_month}", None
+        msg = f"📈 <b>За {current_month}:</b>\n\n"
         if income > 0:
             msg += f"💚 <b>Доход:</b> +{format_amount(income)} сум\n"
         if total_expenses > 0:
